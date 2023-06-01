@@ -1,4 +1,16 @@
+import { web3Accounts, web3Enable, web3FromAddress } from "@polkadot/extension-dapp";
+import { ContractPromise } from "@polkadot/api-contract";
+import { BN, BN_ONE } from "@polkadot/util";
+const { ApiPromise, WsProvider, HttpProvider } = require("@polkadot/api");
 var Web3 = require("web3");
+let client_ink_metadata = require("./client_ink_metadata.json");
+let client_evm_metadata = require("./client_evm_metadata.json");
+let miner_stake_metadata = require("./miner_stake_metadata.json");
+
+const client_evm_contract_address = "0xde66E5401477B35EF297da8cd9B2097c53FB3d1F";
+const master_evm_contract_address = "0x9ff7ed60e5fd10977677c1258b376c8fa8e09422";
+const ferrum_address = "0xF3B61752E52B92BB0B8bF9eBb4FE487B8fD1047C";
+const ink_contract_address = "bHwbNUhyR7wv5BTZiBwoDq4PC3fnECu1AKZv2nAjUB4Vwr5";
 
 export function getWeb3(network) {
   if (network === "bsc") {
@@ -27,33 +39,187 @@ export async function getBalance(network, address) {
   return balance;
 }
 
-export async function sendTx(sender, recipent, amount, pvt_key) {
-  let web3 = getWeb3("ferrum");
-
-  //getting the nonce value for the txn, include the pending parameter for duplicate errors
-  var getNonce = await web3.eth.getTransactionCount(sender, "pending");
-
-  let gasPriceInWei = web3.utils.toWei("50", "Gwei");
-  console.log({ gasPriceInWei });
-
-  var rawTx = {
-    nonce: getNonce,
-    gasPrice: web3.utils.toHex(gasPriceInWei),
-    gasLimit: web3.utils.toHex(3000000),
-    to: recipent,
-    value: amount,
-    data: 0x0,
-  };
-
-  //const account = web3.eth.accounts.privateKeyToAccount(pvt_key);
-  const signed = await web3.eth.accounts.signTransaction(rawTx, pvt_key);
-  console.log("signed");
-  const receipt = await web3.eth.sendSignedTransaction(signed.rawTransaction);
-
-  console.log(receipt);
-
-  return receipt.transactionHash;
+export async function sendContract(amount, network) {
+  if (network === "astar") {
+    await sendContractAstar(amount);
+  } else {
+    await sendContractEvm(amount);
+  }
 }
+
+export async function sendContractEvm(amount) {
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    console.log(accounts);
+
+    let web3 = new Web3(window.web3);
+    var contract = new web3.eth.Contract(client_evm_metadata, client_evm_contract_address);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    const payload = contract.methods.stake(ferrum_address, "1", 0).encodeABI();
+    const recipentAddress = client_evm_contract_address;
+
+    let gasPriceInWei = web3.utils.toWei("50", "Gwei");
+    console.log({ gasPriceInWei });
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: recipentAddress,
+      value: "0x0",
+      data: payload,
+    };
+
+    const receipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(receipt);
+
+    return receipt.transactionHash;
+  }
+}
+
+export async function sendContractMinerStake(amount, network, address) {
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    console.log(accounts);
+
+    // to stake as a miner, we send the amount to the contract
+    // then stake
+    console.log(address);
+    let web3 = new Web3(window.web3);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    var ferrum_token_contract = new web3.eth.Contract(human_standard_token_abi, ferrum_address);
+
+    const transferpayload = ferrum_token_contract.methods.transfer(address, "200").encodeABI();
+    const transferrecipentAddress = ferrum_address;
+
+    let gasPriceInWei = web3.utils.toWei("50", "Gwei");
+    console.log({ gasPriceInWei });
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: transferrecipentAddress,
+      value: "0x0",
+      data: transferpayload,
+    };
+
+    const transferreceipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(transferreceipt);
+
+
+    var miner_stake_contract = new web3.eth.Contract(miner_stake_metadata, address);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    const payload = miner_stake_contract.methods.stake(accounts[0], ferrum_address).encodeABI();
+    const recipentAddress = address;
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: recipentAddress,
+      value: "0x0",
+      data: payload,
+    };
+
+    const receipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(receipt);
+
+    return receipt.transactionHash;
+  }
+}
+
+export async function sendContractMinerDelegate(miner, network, address) {
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    console.log(accounts);
+
+    // to stake as a miner, we send the amount to the contract
+    // then stake
+    console.log(address);
+    console.log({miner});
+    let web3 = new Web3(window.web3);
+    var miner_stake_contract = new web3.eth.Contract(miner_stake_metadata, address);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    const payload = miner_stake_contract.methods.delegate(miner).encodeABI();
+    const recipentAddress = address;
+
+    let gasPriceInWei = web3.utils.toWei("50", "Gwei");
+    console.log({ gasPriceInWei });
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: recipentAddress,
+      value: "0x0",
+      data: payload,
+    };
+
+    const receipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(receipt);
+
+    return receipt.transactionHash;
+  }
+}
+
+export async function sendContractAstar(amount) {
+  const allInjected = await web3Enable("Ferrum Multichain Staking");
+  const allAccounts = await web3Accounts();
+  let web3 = await web3FromAddress(allAccounts[0].address);
+  const provider = new WsProvider("wss://shibuya-rpc.dwellir.com");
+  const api = await ApiPromise.create({ provider });
+
+  const MAX_CALL_WEIGHT = new BN(9000000000).isub(BN_ONE);
+  const PROOFSIZE = new BN(1000000);
+
+  // The address is the actual on-chain address as ss58 or AccountId object.
+  const contract = new ContractPromise(api, client_ink_metadata, ink_contract_address);
+
+  const value = 0; // only for payable messages, call will fail otherwise
+  const gasLimit = await api?.registry.createType("WeightV2", {
+    refTime: MAX_CALL_WEIGHT,
+    proofSize: PROOFSIZE,
+  });
+  const storageDepositLimit = null;
+
+  const { gasRequired } = await contract.query.stake(
+    allAccounts[0].address,
+    {
+      gasLimit: api?.registry.createType("WeightV2", {
+        refTime: MAX_CALL_WEIGHT,
+        proofSize: PROOFSIZE,
+      }),
+      storageDepositLimit,
+    },
+    amount,
+    0
+  );
+  console.log(gasRequired.toHuman());
+
+  let actualgasLimit = api?.registry.createType("WeightV2", gasRequired);
+
+  let hash = await contract.tx
+    .stake({ storageDepositLimit, gasLimit: actualgasLimit }, amount, 0)
+    .signAndSend(allAccounts[0].address, { signer: web3.signer }, (status) => {});
+
+  console.log(hash.toString());
+}
+
 
 var human_standard_token_abi = [
   {
@@ -192,40 +358,3 @@ var human_standard_token_abi = [
     type: "function",
   },
 ];
-
-export async function sendTokenTx(network, sender, token_contract_addr, recipent, amount, pvt_key) {
-  let web3 = getWeb3(network);
-
-  //getting the nonce value for the txn, include the pending parameter for duplicate errors
-  var getNonce = await web3.eth.getTransactionCount(sender, "pending");
-
-  let gasPriceInWei = web3.utils.toWei("50", "Gwei");
-  console.log({ gasPriceInWei });
-
-  var contract = new web3.eth.Contract(human_standard_token_abi, token_contract_addr, {
-    from: sender,
-  });
-
-  console.log("contract ready");
-
-  const payload = contract.methods.transfer(recipent, amount).encodeABI();
-  const recipentAddress = token_contract_addr;
-
-  var rawTx = {
-    nonce: getNonce,
-    gasPrice: web3.utils.toHex(gasPriceInWei),
-    gasLimit: web3.utils.toHex(3000000),
-    to: recipentAddress,
-    value: "0x0",
-    data: payload,
-  };
-
-  //const account = web3.eth.accounts.privateKeyToAccount(pvt_key);
-  const signed = await web3.eth.accounts.signTransaction(rawTx, pvt_key);
-  console.log("signed");
-  const receipt = await web3.eth.sendSignedTransaction(signed.rawTransaction);
-
-  console.log(receipt);
-
-  return receipt.transactionHash;
-}

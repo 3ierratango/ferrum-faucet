@@ -4,9 +4,10 @@ import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import Form from "react-bootstrap/Form";
 import InputGroup from "react-bootstrap/InputGroup";
-import { sendTx, sendTokenTx, getBalance } from "./transaction";
+import { sendContract, getBalance, sendContractMinerStake, sendContractMinerDelegate } from "./transaction";
 import ClipLoader from "react-spinners/ClipLoader";
 import "./App.css";
+import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 
 class NameForm extends React.Component {
   constructor(props) {
@@ -17,8 +18,10 @@ class NameForm extends React.Component {
       address: "",
       tx_hash: "",
       faucet_balance: "",
-      faucet_address: "0x25451a4de12dccc2d166922fa938e900fcc4ed24",
+      client_staking_address: "",
+      master_staking_address: "0xB1CcE8e7039395348283cbb267007351a7777876",
       token_contract_address: "0xF3B61752E52B92BB0B8bF9eBb4FE487B8fD1047C",
+      miner_staking_address: "",
       error: "",
       loading: false
     };
@@ -32,6 +35,8 @@ class NameForm extends React.Component {
 
   changeDropdown = (eventkey) => {
     this.setState({ network: eventkey });
+    this.setClientStakingAddress(eventkey);
+    this.setMinerStakingAdress(eventkey);
   };
 
   getBalance = async (address) => {
@@ -40,6 +45,24 @@ class NameForm extends React.Component {
       return balance;
     }
   };
+
+  setClientStakingAddress = (network) => {
+    console.log(network);
+    if (network == "astar") {
+      this.setState({client_staking_address : "Zuks8Jkib9NVneMhXpBpLERnBuSHcr2G92noPk5Y9PGd56i"});
+      return;
+    }
+    this.setState({client_staking_address : "0xde66E5401477B35EF297da8cd9B2097c53FB3d1F"}) 
+  }
+
+  setMinerStakingAdress = (network) => {
+    console.log(network);
+    if (network == "bsc") {
+      this.setState({miner_staking_address : "0x2Ee5bB948fa0A1C45EE2E60f3532970deD6232F4"});
+      return;
+    }
+    this.setState({miner_staking_address : "0xC5411B9AF94A39Fd351410Df908e682606ffDFcB"}) 
+  }
 
   getExplorerLink = (hash) => {
     if (this.state.network == "ferrum") {
@@ -59,33 +82,39 @@ class NameForm extends React.Component {
     }
   }
 
-  transferBalance = async (address) => {
+  clientStake = async (address) => {
     this.setState({ loading: true, tx_hash : "", error : "" });
-    if (this.state.network == "ferrum") {
-      let tx_hash = await sendTx(
-        this.state.faucet_address,
+      let tx_hash = await sendContract(
         this.state.address,
-        "1000000000000000000",
-        "0x79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf"
+        this.state.network
       );
       console.log(tx_hash);
       this.setState({ tx_hash: tx_hash, loading: false });
-    } else {
-      try {
-        let tx_hash = await sendTokenTx(
-          this.state.network,
-          this.state.faucet_address,
-          this.state.token_contract_address,
-          this.state.address,
-          "1000000000000000000",
-          "0x79c3b7fc0b7697b9414cb87adcb37317d1cab32818ae18c0e97ad76395d1fdcf"
-        );
-        console.log(tx_hash);
-        this.setState({ tx_hash: tx_hash, loading: false });
-      } catch (err) {
-        this.setState({ error: String(err), loading: false });
-      }
-    }
+
+  };
+
+  minerStake = async (address) => {
+    this.setState({ loading: true, tx_hash : "", error : "" });
+      let tx_hash = await sendContractMinerStake(
+        this.state.address,
+        this.state.network,
+        this.state.miner_staking_address
+      );
+      console.log(tx_hash);
+      this.setState({ tx_hash: tx_hash, loading: false });
+
+  };
+
+  minerDelegate = async (address) => {
+    this.setState({ loading: true, tx_hash : "", error : "" });
+      let tx_hash = await sendContractMinerDelegate(
+        this.state.address,
+        this.state.network,
+        this.state.miner_staking_address
+      );
+      console.log(tx_hash);
+      this.setState({ tx_hash: tx_hash, loading: false });
+
   };
 
   networkToNetworkName = (eventkey) => {
@@ -101,8 +130,8 @@ class NameForm extends React.Component {
       return "AVAX Testnet";
     }
 
-    if (eventkey === "ferrum") {
-      return "Ferrum Testnet";
+    if (eventkey === "astar") {
+      return "Shibuya Testnet";
     }
 
     return "Select a network";
@@ -112,24 +141,107 @@ class NameForm extends React.Component {
     return (
       <Container className="p-1">
         <Container className="p-5 mb-4 bg-light rounded-3">
-          <p> Faucet Address : {this.state.faucet_address} </p>
           <p>
             {" "}
-            Selected Network :{" "}
+            Selected Client Network :{" "}
             <Dropdown onSelect={this.changeDropdown}>
               <Dropdown.Toggle variant="success" id="dropdown-basic">
                 {this.networkToNetworkName(this.state.network)}
               </Dropdown.Toggle>
 
               <Dropdown.Menu>
-                <Dropdown.Item eventKey="ferrum">Ferrum Testnet</Dropdown.Item>
                 <Dropdown.Item eventKey="bsc">BSC Testnet</Dropdown.Item>
                 <Dropdown.Item eventKey="matic">MATIC Testnet</Dropdown.Item>
-                <Dropdown.Item eventKey="avax">Avalanche Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="astar">Shibuya Testnet</Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown>
           </p>
-          <label>Address:</label>
+          <h2>Client Contract</h2>
+          <p> Client Staking Contract : {this.state.client_staking_address} </p>
+          <label>Amount:</label>
+          <InputGroup className="mb-3">
+            <Form.Control
+              placeholder="Amount"
+              aria-label="Amount"
+              aria-describedby="basic-addon2"
+              onChange={(event) => {
+                this.setState({
+                  address: event.target.value,
+                });
+              }}
+            />
+            <Button
+              variant="warning"
+              id="button-addon2"
+              onClick={() => this.clientStake(this.state.address)}
+            >
+              Stake
+            </Button>
+          </InputGroup>
+
+          <br /><br /><br /><br />
+          <h2>Master Contract</h2>
+          <p> Master Staking Contract : {this.state.master_staking_address} </p>
+            <Button
+              variant="warning"
+              id="button-addon2"
+              onClick={() => this.clientStake(this.state.address)}
+            >
+              Close Position
+            </Button>
+
+            <br /><br /><br /><br /><br /><br />
+          <h2>Miner Stake</h2>
+          Selected Client Network :{" "}
+            <Dropdown onSelect={this.changeDropdown}>
+              <Dropdown.Toggle variant="success" id="dropdown-basic">
+                {this.networkToNetworkName(this.state.network)}
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item eventKey="bsc">BSC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="matic">MATIC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="astar">Shibuya Testnet</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+            <p> Miner Staking Contract : {this.state.miner_staking_address} </p>
+          <label>Amount:</label>
+          <InputGroup className="mb-3">
+            <Form.Control
+              placeholder="Amount"
+              aria-label="Amount"
+              aria-describedby="basic-addon2"
+              onChange={(event) => {
+                this.setState({
+                  address: event.target.value,
+                });
+              }}
+            />
+            <Button
+              variant="warning"
+              id="button-addon2"
+              onClick={() => this.minerStake(this.state.address)}
+            >
+              Stake
+            </Button>
+          </InputGroup>
+
+          <br /><br /><br /><br /><br /><br />
+          <h2>Miner Stake Delegate</h2>
+          Selected Client Network :{" "}
+            <Dropdown onSelect={this.changeDropdown}>
+              <Dropdown.Toggle variant="success" id="dropdown-basic">
+                {this.networkToNetworkName(this.state.network)}
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item eventKey="bsc">BSC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="matic">MATIC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="astar">Shibuya Testnet</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+            <p> Miner Staking Contract : {this.state.miner_staking_address} </p>
+          <label>Miner Address:</label>
           <InputGroup className="mb-3">
             <Form.Control
               placeholder="Address"
@@ -144,11 +256,12 @@ class NameForm extends React.Component {
             <Button
               variant="warning"
               id="button-addon2"
-              onClick={() => this.transferBalance(this.state.address)}
+              onClick={() => this.minerDelegate(this.state.address)}
             >
-              Get 1tFRM
+              Delegate
             </Button>
           </InputGroup>
+
           {this.state.loading && <ClipLoader size={50} aria-label="Loading Spinner" data-testid="loader" /> }
           {this.state.tx_hash && <label>Success! TX Hash : <a href={this.getExplorerLink(this.state.tx_hash)}>{this.state.tx_hash}</a> </label>}
           {this.state.error && <label>Error : {this.state.error} </label>}
@@ -161,10 +274,10 @@ class NameForm extends React.Component {
 const App = () => (
   <Container className="p-3">
     <Container className="p-5 mb-4 bg-light rounded-3">
-      <h1 className="header">Ferrum Testnet Faucet</h1>
-      <p>This faucet will dispense tFRM tokens on all deployed testnets : </p>
+      <h1 className="header">Ferrum MultiChain Staking</h1>
+      {/* <p>This faucet will dispense tFRM tokens on all deployed testnets : </p>
       <p>1. Select the Network you would like to request tFRM</p>
-      <p>2. Input address and submit transaction</p>
+      <p>2. Input address and submit transaction</p> */}
     </Container>
     <NameForm></NameForm>
   </Container>
