@@ -4,7 +4,7 @@ import Button from "react-bootstrap/Button";
 import Dropdown from "react-bootstrap/Dropdown";
 import Form from "react-bootstrap/Form";
 import InputGroup from "react-bootstrap/InputGroup";
-import { sendContract, getBalance, sendContractMinerStake, sendContractMinerDelegate } from "./transaction";
+import { sendContract, getBalance, sendContractMinerStake, sendContractMinerDelegate, sendWithdrawMinerRewards, sendWithdrawAuthorityRewards } from "./transaction";
 import ClipLoader from "react-spinners/ClipLoader";
 import "./App.css";
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
@@ -21,9 +21,17 @@ class NameForm extends React.Component {
       client_staking_address: "",
       master_staking_address: "0xB1CcE8e7039395348283cbb267007351a7777876",
       token_contract_address: "0xF3B61752E52B92BB0B8bF9eBb4FE487B8fD1047C",
+      miner_manager_address: "0xf8f6B2D20698a1Fc0409510Ed95E920da772579D",
+      authority_manager_address: "0x9815A11F93a1279344b7374A7c2daf4cA73C542f",
       miner_staking_address: "",
       error: "",
-      loading: false
+      loading: false,
+      show_miner_fee: false,
+      miner_fixed_fee: 0,
+      miner_variable_fee: 0,
+      show_authority_fee: false,
+      authority_fixed_fee: 0,
+      authority_variable_fee: 0
     };
 
     this.handleChange = this.handleChange.bind(this);
@@ -115,6 +123,28 @@ class NameForm extends React.Component {
       console.log(tx_hash);
       this.setState({ tx_hash: tx_hash, loading: false });
 
+  };
+
+  minerWithdraw = async (address, withdraw) => {
+    this.setState({ loading: true });
+      let tx_hash = await sendContractMinerDelegate(
+        this.state.address,
+        this.state.network,
+        this.state.miner_staking_address
+      );
+      await new Promise((resolve)=>setTimeout(resolve,1000));
+      this.setState({ loading: false, miner_fixed_fee : 0, miner_variable_fee : 0, show_miner_fee : true });
+  };
+
+  authorityWithdraw = async (address) => {
+    this.setState({ loading: true });
+      // let tx_hash = await sendContractMinerDelegate(
+      //   this.state.address,
+      //   this.state.network,
+      //   this.state.miner_staking_address
+      // );
+      await new Promise((resolve)=>setTimeout(resolve,1000));
+      this.setState({ loading: false, authority_fixed_fee : 0, authority_variable_fee : 0, show_authority_fee : true });
   };
 
   networkToNetworkName = (eventkey) => {
@@ -261,6 +291,96 @@ class NameForm extends React.Component {
               Delegate
             </Button>
           </InputGroup>
+
+          <br /><br /><br /><br /><br /><br />
+          <h2>Withdraw Miner Rewards</h2>
+          Selected Client Network :{" "}
+            <Dropdown onSelect={this.changeDropdown}>
+              <Dropdown.Toggle variant="success" id="dropdown-basic">
+                {this.networkToNetworkName(this.state.network)}
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item eventKey="bsc">BSC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="matic">MATIC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="astar">Shibuya Testnet</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+            <p> Miner Manager Contract : {this.state.miner_manager_address} </p>
+          <label>Miner Address:</label>
+          <InputGroup className="mb-3">
+            <Form.Control
+              placeholder="Address"
+              aria-label="Address"
+              aria-describedby="basic-addon2"
+              onChange={(event) => {
+                this.setState({
+                  address: event.target.value,
+                });
+              }}
+            />
+            <Button
+              variant="warning"
+              id="button-addon2"
+              onClick={() => this.minerWithdraw()}
+            >
+              {this.state.show_miner_fee ? "Withdraw" : "Enquire"}
+            </Button>
+          </InputGroup>
+          <br />
+          {this.state.show_miner_fee && <div>
+            <br />
+            Collected Fixed Fee : {this.state.miner_fixed_fee}
+            <br />
+            Collected Variable fee : {this.state.miner_variable_fee}
+            <br />
+            Total Fee : {this.state.miner_variable_fee + this.state.miner_fixed_fee}
+          </div>}
+
+          <br /><br /><br /><br /><br /><br />
+          <h2>Withdraw Authority Rewards</h2>
+          Selected Client Network :{" "}
+            <Dropdown onSelect={this.changeDropdown}>
+              <Dropdown.Toggle variant="success" id="dropdown-basic">
+                {this.networkToNetworkName(this.state.network)}
+              </Dropdown.Toggle>
+
+              <Dropdown.Menu>
+                <Dropdown.Item eventKey="bsc">BSC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="matic">MATIC Testnet</Dropdown.Item>
+                <Dropdown.Item eventKey="astar">Shibuya Testnet</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+            <p> Autority Manager Contract : {this.state.authority_manager_address} </p>
+          <label>Authority Address:</label>
+          <InputGroup className="mb-3">
+            <Form.Control
+              placeholder="Address"
+              aria-label="Address"
+              aria-describedby="basic-addon2"
+              onChange={(event) => {
+                this.setState({
+                  address: event.target.value,
+                });
+              }}
+            />
+            <Button
+              variant="warning"
+              id="button-addon2"
+              onClick={() => this.authorityWithdraw()}
+            >
+              {this.state.show_authority_fee ? "Withdraw" : "Enquire"}
+            </Button>
+          </InputGroup>
+          <br />
+          {this.state.show_authority_fee && <div>
+            <br />
+            Collected Fixed Fee : {this.state.authority_fixed_fee}
+            <br />
+            Collected Variable fee : {this.state.authority_variable_fee}
+            <br />
+            Total Fee : {this.state.authority_variable_fee + this.state.authority_fixed_fee}
+          </div>}
 
           {this.state.loading && <ClipLoader size={50} aria-label="Loading Spinner" data-testid="loader" /> }
           {this.state.tx_hash && <label>Success! TX Hash : <a href={this.getExplorerLink(this.state.tx_hash)}>{this.state.tx_hash}</a> </label>}

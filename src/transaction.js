@@ -177,6 +177,82 @@ export async function sendContractMinerDelegate(miner, network, address) {
   }
 }
 
+export async function sendWithdrawMinerRewards(miner, network, address) {
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    console.log(accounts);
+
+    // to stake as a miner, we send the amount to the contract
+    // then stake
+    console.log(address);
+    console.log({miner});
+    let web3 = new Web3(window.web3);
+    var miner_stake_contract = new web3.eth.Contract(miner_stake_metadata, address);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    const payload = miner_stake_contract.methods.delegate(miner).encodeABI();
+    const recipentAddress = address;
+
+    let gasPriceInWei = web3.utils.toWei("50", "Gwei");
+    console.log({ gasPriceInWei });
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: recipentAddress,
+      value: "0x0",
+      data: payload,
+    };
+
+    const receipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(receipt);
+
+    return receipt.transactionHash;
+  }
+}
+
+export async function sendWithdrawAuthorityRewards(miner, network, address) {
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    await window.ethereum.enable();
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    console.log(accounts);
+
+    // to stake as a miner, we send the amount to the contract
+    // then stake
+    console.log(address);
+    console.log({miner});
+    let web3 = new Web3(window.web3);
+    var miner_stake_contract = new web3.eth.Contract(miner_stake_metadata, address);
+    var getNonce = await web3.eth.getTransactionCount(accounts[0], "pending");
+    const payload = miner_stake_contract.methods.delegate(miner).encodeABI();
+    const recipentAddress = address;
+
+    let gasPriceInWei = web3.utils.toWei("50", "Gwei");
+    console.log({ gasPriceInWei });
+
+    var rawTx = {
+      from: accounts[0],
+      nonce: getNonce,
+      gasPrice: web3.utils.toHex(gasPriceInWei),
+      gasLimit: web3.utils.toHex(3000000),
+      to: recipentAddress,
+      value: "0x0",
+      data: payload,
+    };
+
+    const receipt = await web3.eth.sendTransaction(rawTx);
+
+    console.log(receipt);
+
+    return receipt.transactionHash;
+  }
+}
+
 export async function sendContractAstar(amount) {
   const allInjected = await web3Enable("Ferrum Multichain Staking");
   const allAccounts = await web3Accounts();
